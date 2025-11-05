@@ -193,11 +193,18 @@ class TikTokBufferPoster:
 
     def get_random_video(self):
         """Select the next video in order, cycling through all videos"""
-        history_file = os.path.join(os.path.dirname(self.videos_folder), '.posted_videos')
+        # Save tracking file in the same directory as the script
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        history_file = os.path.join(script_dir, 'posted_videos.txt')
         posted_videos = []
+        
+        print(f"Tracking file location: {history_file}")
         
         # Read the list of posted videos in order
         if os.path.exists(history_file):
+            with open(history_file, 'r') as f:
+                posted_videos = [line.strip() for line in f if line.strip()]
+            print(f"Previously posted: {len(posted_videos)} videos")
             with open(history_file, 'r') as f:
                 posted_videos = [line.strip() for line in f if line.strip()]
         
@@ -369,30 +376,77 @@ class TikTokBufferPoster:
             description_entered = False
             time.sleep(2)
             
-            # Strategy 1: Click anywhere on the page and just start typing
-            print("Strategy 1: Clicking body and typing...")
+            # Strategy 1: Find and click the largest visible textarea
+            print("Strategy 1: Finding the main text input area...")
             try:
-                body = self.driver.find_element(By.TAG_NAME, 'body')
-                body.click()
-                time.sleep(1)
+                all_textareas = self.driver.find_elements(By.TAG_NAME, "textarea")
+                largest_textarea = None
+                max_size = 0
                 
-                # Type the description
-                actions = ActionChains(self.driver)
-                actions.send_keys(description)
-                actions.perform()
-                time.sleep(2)
+                for textarea in all_textareas:
+                    try:
+                        if textarea.is_displayed() and textarea.is_enabled():
+                            size = textarea.size
+                            area = size['height'] * size['width']
+                            if area > max_size:
+                                max_size = area
+                                largest_textarea = textarea
+                    except:
+                        continue
                 
-                # Check if text appeared anywhere
-                page_text = self.driver.find_element(By.TAG_NAME, 'body').text
-                if description[:20] in page_text:
-                    print(f"✓ Description found on page after typing!")
-                    description_entered = True
+                if largest_textarea:
+                    print(f"Found largest textarea (size: {max_size})")
+                    # Scroll into view
+                    self.driver.execute_script("arguments[0].scrollIntoView(true);", largest_textarea)
+                    time.sleep(0.5)
+                    
+                    # Click to focus
+                    largest_textarea.click()
+                    time.sleep(1)
+                    
+                    # Clear existing content
+                    largest_textarea.clear()
+                    time.sleep(0.5)
+                    
+                    # Type the description
+                    largest_textarea.send_keys(description)
+                    time.sleep(2)
+                    
+                    # Verify
+                    value = largest_textarea.get_attribute('value')
+                    if value and len(value) > 20:
+                        print(f"✓ Description entered successfully! Length: {len(value)}")
+                        description_entered = True
+                    else:
+                        print(f"Text didn't save properly. Trying alternative method...")
             except Exception as e:
                 print(f"Strategy 1 failed: {e}")
             
-            # Strategy 2: Find visible text areas and try each one
+            # Strategy 2: Try clicking body and typing if Strategy 1 failed
             if not description_entered:
-                print("\nStrategy 2: Finding and clicking visible text inputs...")
+                print("\nStrategy 2: Clicking body and typing...")
+                try:
+                    body = self.driver.find_element(By.TAG_NAME, 'body')
+                    body.click()
+                    time.sleep(1)
+                    
+                    # Type the description
+                    actions = ActionChains(self.driver)
+                    actions.send_keys(description)
+                    actions.perform()
+                    time.sleep(2)
+                    
+                    # Check if text appeared anywhere
+                    page_text = self.driver.find_element(By.TAG_NAME, 'body').text
+                    if description[:20] in page_text:
+                        print(f"✓ Description found on page after typing!")
+                        description_entered = True
+                except Exception as e:
+                    print(f"Strategy 2 failed: {e}")
+            
+            # Strategy 3: Find visible text areas and try each one
+            if not description_entered:
+                print("\nStrategy 3: Finding and clicking visible text inputs...")
                 try:
                     all_textareas = self.driver.find_elements(By.TAG_NAME, "textarea")
                     print(f"Found {len(all_textareas)} textarea elements")
@@ -429,11 +483,11 @@ class TikTokBufferPoster:
                             print(f"  Textarea #{idx + 1} failed: {e}")
                             continue
                 except Exception as e:
-                    print(f"Strategy 2 failed: {e}")
+                    print(f"Strategy 3 failed: {e}")
             
-            # Strategy 3: Find contenteditable divs
+            # Strategy 4: Find contenteditable divs
             if not description_entered:
-                print("\nStrategy 3: Finding contenteditable divs...")
+                print("\nStrategy 4: Finding contenteditable divs...")
                 try:
                     editables = self.driver.find_elements(By.CSS_SELECTOR, "[contenteditable='true']")
                     print(f"Found {len(editables)} contenteditable elements")
@@ -471,7 +525,7 @@ class TikTokBufferPoster:
                             print(f"  Contenteditable #{idx + 1} failed: {e}")
                             continue
                 except Exception as e:
-                    print(f"Strategy 3 failed: {e}")
+                    print(f"Strategy 4 failed: {e}")
             
             if not description_entered:
                 print("WARNING: Could not enter description text!")
