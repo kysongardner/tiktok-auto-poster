@@ -372,6 +372,14 @@ class TikTokBufferPoster:
             
             # NOW enter the description AFTER video is uploaded
             print("\n=== ENTERING DESCRIPTION ===")
+            print("⚠️  DO NOT use your mouse/keyboard for the next 10 seconds!")
+            
+            # Bring browser window to focus
+            try:
+                self.driver.switch_to.window(self.driver.current_window_handle)
+                time.sleep(1)
+            except:
+                pass
             
             description_entered = False
             time.sleep(2)
@@ -398,11 +406,11 @@ class TikTokBufferPoster:
                     print(f"Found largest textarea (size: {max_size})")
                     # Scroll into view
                     self.driver.execute_script("arguments[0].scrollIntoView(true);", largest_textarea)
-                    time.sleep(0.5)
-                    
-                    # Click to focus
-                    largest_textarea.click()
                     time.sleep(1)
+                    
+                    # Click to focus and ensure window is active
+                    largest_textarea.click()
+                    time.sleep(1.5)
                     
                     # Clear existing content
                     largest_textarea.clear()
