@@ -18,6 +18,7 @@ env/
 
 # Video history
 .posted_videos
+posted_videos.txt
 
 # IDE
 .vscode/
