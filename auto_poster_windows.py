@@ -192,35 +192,41 @@ class TikTokBufferPoster:
             return False
 
     def get_random_video(self):
-        """Select a random video from the folder, avoiding recent repeats"""
+        """Select the next video in order, cycling through all videos"""
         history_file = os.path.join(os.path.dirname(self.videos_folder), '.posted_videos')
-        posted_videos = set()
+        posted_videos = []
         
+        # Read the list of posted videos in order
         if os.path.exists(history_file):
             with open(history_file, 'r') as f:
-                posted_videos = set(line.strip() for line in f)
+                posted_videos = [line.strip() for line in f if line.strip()]
         
-        videos = [f for f in os.listdir(self.videos_folder) 
-                 if f.lower().endswith(('.mp4', '.mov', '.avi', '.mkv'))]
+        # Get all videos in folder
+        videos = sorted([f for f in os.listdir(self.videos_folder) 
+                 if f.lower().endswith(('.mp4', '.mov', '.avi', '.mkv'))])
         
         if not videos:
             raise Exception("No videos found in the specified folder")
         
+        # Find videos not yet posted
         available_videos = [v for v in videos if v not in posted_videos]
         
+        # If all videos have been posted, start over
         if not available_videos:
-            print("All videos have been posted. Starting fresh rotation.")
-            posted_videos.clear()
+            print("All videos have been posted. Starting fresh cycle from the beginning.")
+            posted_videos = []
             available_videos = videos
         
-        selected_video = random.choice(available_videos)
-        posted_videos.add(selected_video)
+        # Select the first available video (maintains order)
+        selected_video = available_videos[0]
+        posted_videos.append(selected_video)
         
+        # Save the updated history
         with open(history_file, 'w') as f:
             f.write('\n'.join(posted_videos))
         
         full_path = os.path.join(self.videos_folder, selected_video)
-        print(f"Selected video: {selected_video}")
+        print(f"Selected video: {selected_video} ({len(posted_videos)}/{len(videos)} posted)")
         return full_path
 
     def post_video(self):
