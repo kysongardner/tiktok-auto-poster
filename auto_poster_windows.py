@@ -268,74 +268,6 @@ class TikTokBufferPoster:
             # Wait for composer to fully load
             time.sleep(3)
             
-            # Ensure only TikTok is selected if multiple channels are connected
-            print("\n=== Checking channel selection ===")
-            try:
-                # Look for channel selection elements (checkboxes, buttons, etc.)
-                # First, find all elements that might contain channel names
-                all_elements = self.driver.find_elements(By.XPATH, "//*[contains(text(), 'TikTok') or contains(text(), 'tiktok')]")
-                
-                if all_elements:
-                    print(f"Found {len(all_elements)} elements containing 'TikTok'")
-                    
-                    # Look for checkboxes or toggles near TikTok
-                    for element in all_elements:
-                        try:
-                            # Find parent container
-                            parent = element.find_element(By.XPATH, "./ancestor::*[contains(@class, 'channel') or contains(@class, 'account') or contains(@role, 'button')]")
-                            
-                            # Look for checkbox or toggle
-                            checkbox = None
-                            try:
-                                checkbox = parent.find_element(By.CSS_SELECTOR, "input[type='checkbox']")
-                            except:
-                                try:
-                                    checkbox = parent.find_element(By.CSS_SELECTOR, "[role='checkbox']")
-                                except:
-                                    pass
-                            
-                            if checkbox:
-                                # Check if it's checked
-                                is_checked = checkbox.is_selected() or checkbox.get_attribute('checked') or checkbox.get_attribute('aria-checked') == 'true'
-                                
-                                if not is_checked:
-                                    print("TikTok not selected, clicking to select...")
-                                    checkbox.click()
-                                    time.sleep(1)
-                                else:
-                                    print("✓ TikTok is already selected")
-                                break
-                        except:
-                            continue
-                
-                # Now unselect all OTHER channels (anything not TikTok)
-                print("Checking for other channels to deselect...")
-                
-                # Find all checked checkboxes
-                all_checkboxes = self.driver.find_elements(By.CSS_SELECTOR, "input[type='checkbox']:checked, [role='checkbox'][aria-checked='true']")
-                
-                for checkbox in all_checkboxes:
-                    try:
-                        # Get the parent or nearby text to see if it's TikTok
-                        parent = checkbox.find_element(By.XPATH, "./..")
-                        parent_text = parent.text.lower()
-                        
-                        # If it's not TikTok, uncheck it
-                        if 'tiktok' not in parent_text:
-                            print(f"Unchecking non-TikTok channel: {parent_text[:30]}...")
-                            checkbox.click()
-                            time.sleep(0.5)
-                    except:
-                        continue
-                
-                print("✓ Channel selection verified - TikTok only")
-                
-            except Exception as e:
-                print(f"Could not verify channel selection: {e}")
-                print("Continuing anyway...")
-            
-            time.sleep(2)
-            
             # Upload the video FIRST (before entering text)
             print("\n=== UPLOADING VIDEO ===")
             print(f"Using video path: {video_path}")
@@ -372,175 +304,64 @@ class TikTokBufferPoster:
             
             # NOW enter the description AFTER video is uploaded
             print("\n=== ENTERING DESCRIPTION ===")
-            print("⚠️  DO NOT use your mouse/keyboard for the next 10 seconds!")
+            time.sleep(3)
             
-            # Bring browser window to focus
+            # Click in the text area and type character by character
             try:
-                self.driver.switch_to.window(self.driver.current_window_handle)
-                time.sleep(1)
-            except:
-                pass
-            
-            description_entered = False
-            time.sleep(2)
-            
-            # Strategy 1: Find and click the largest visible textarea
-            print("Strategy 1: Finding the main text input area...")
-            try:
-                all_textareas = self.driver.find_elements(By.TAG_NAME, "textarea")
-                largest_textarea = None
-                max_size = 0
+                # Find the text input area
+                print("Looking for text input...")
                 
-                for textarea in all_textareas:
-                    try:
-                        if textarea.is_displayed() and textarea.is_enabled():
-                            size = textarea.size
-                            area = size['height'] * size['width']
-                            if area > max_size:
-                                max_size = area
-                                largest_textarea = textarea
-                    except:
-                        continue
+                # Try to find textarea elements
+                textareas = self.driver.find_elements(By.TAG_NAME, "textarea")
                 
-                if largest_textarea:
-                    print(f"Found largest textarea (size: {max_size})")
-                    # Scroll into view
-                    self.driver.execute_script("arguments[0].scrollIntoView(true);", largest_textarea)
-                    time.sleep(1)
-                    
-                    # Click to focus and ensure window is active
-                    largest_textarea.click()
-                    time.sleep(1.5)
-                    
-                    # Clear existing content
-                    largest_textarea.clear()
-                    time.sleep(0.5)
-                    
-                    # Type the description
-                    largest_textarea.send_keys(description)
-                    time.sleep(2)
-                    
-                    # Verify
-                    value = largest_textarea.get_attribute('value')
-                    if value and len(value) > 20:
-                        print(f"✓ Description entered successfully! Length: {len(value)}")
-                        description_entered = True
-                    else:
-                        print(f"Text didn't save properly. Trying alternative method...")
-            except Exception as e:
-                print(f"Strategy 1 failed: {e}")
-            
-            # Strategy 2: Try clicking body and typing if Strategy 1 failed
-            if not description_entered:
-                print("\nStrategy 2: Clicking body and typing...")
-                try:
-                    body = self.driver.find_element(By.TAG_NAME, 'body')
-                    body.click()
-                    time.sleep(1)
-                    
-                    # Type the description
-                    actions = ActionChains(self.driver)
-                    actions.send_keys(description)
-                    actions.perform()
-                    time.sleep(2)
-                    
-                    # Check if text appeared anywhere
-                    page_text = self.driver.find_element(By.TAG_NAME, 'body').text
-                    if description[:20] in page_text:
-                        print(f"✓ Description found on page after typing!")
-                        description_entered = True
-                except Exception as e:
-                    print(f"Strategy 2 failed: {e}")
-            
-            # Strategy 3: Find visible text areas and try each one
-            if not description_entered:
-                print("\nStrategy 3: Finding and clicking visible text inputs...")
-                try:
-                    all_textareas = self.driver.find_elements(By.TAG_NAME, "textarea")
-                    print(f"Found {len(all_textareas)} textarea elements")
-                    
-                    for idx, textarea in enumerate(all_textareas):
+                if textareas:
+                    print(f"Found {len(textareas)} textarea elements")
+                    # Click the first visible one
+                    for textarea in textareas:
                         try:
-                            if textarea.is_displayed() and textarea.is_enabled():
-                                print(f"  Trying textarea #{idx + 1}...")
-                                
-                                # Scroll into view
-                                self.driver.execute_script("arguments[0].scrollIntoView(true);", textarea)
-                                time.sleep(0.5)
-                                
-                                # Click it
+                            if textarea.is_displayed():
+                                print("Clicking textarea...")
                                 textarea.click()
                                 time.sleep(1)
                                 
-                                # Clear it
-                                textarea.clear()
-                                time.sleep(0.5)
+                                # Type character by character using ActionChains
+                                print(f"Typing description character by character...")
+                                actions = ActionChains(self.driver)
+                                for char in description:
+                                    actions.send_keys(char)
+                                    actions.perform()
+                                    time.sleep(0.05)  # Small delay between characters
                                 
-                                # Type description
-                                textarea.send_keys(description)
                                 time.sleep(2)
-                                
-                                # Verify
-                                value = textarea.get_attribute('value')
-                                if value and len(value) > 5:
-                                    print(f"✓ Text successfully entered in textarea #{idx + 1}: {value[:50]}...")
-                                    description_entered = True
-                                    self.driver.save_screenshot('text_entered_success.png')
-                                    break
+                                print("Description entered")
+                                break
                         except Exception as e:
-                            print(f"  Textarea #{idx + 1} failed: {e}")
+                            print(f"Error with textarea: {e}")
                             continue
-                except Exception as e:
-                    print(f"Strategy 3 failed: {e}")
+                else:
+                    # If no textarea, try contenteditable
+                    print("No textarea found, trying contenteditable...")
+                    editable_divs = self.driver.find_elements(By.CSS_SELECTOR, "[contenteditable='true']")
+                    if editable_divs:
+                        editable_divs[0].click()
+                        time.sleep(1)
+                        
+                        # Type character by character
+                        print(f"Typing description character by character in contenteditable...")
+                        actions = ActionChains(self.driver)
+                        for char in description:
+                            actions.send_keys(char)
+                            actions.perform()
+                            time.sleep(0.05)
+                        
+                        time.sleep(2)
+                        print("Description entered in contenteditable div")
+                
+            except Exception as e:
+                print(f"Error entering description: {e}")
+                print("Continuing without description...")
             
-            # Strategy 4: Find contenteditable divs
-            if not description_entered:
-                print("\nStrategy 4: Finding contenteditable divs...")
-                try:
-                    editables = self.driver.find_elements(By.CSS_SELECTOR, "[contenteditable='true']")
-                    print(f"Found {len(editables)} contenteditable elements")
-                    
-                    for idx, div in enumerate(editables):
-                        try:
-                            if div.is_displayed() and div.is_enabled():
-                                print(f"  Trying contenteditable #{idx + 1}...")
-                                
-                                # Scroll into view
-                                self.driver.execute_script("arguments[0].scrollIntoView(true);", div)
-                                time.sleep(0.5)
-                                
-                                # Click it
-                                div.click()
-                                time.sleep(1)
-                                
-                                # Clear existing text
-                                div.send_keys(Keys.CONTROL, 'a')
-                                div.send_keys(Keys.DELETE)
-                                time.sleep(0.5)
-                                
-                                # Type description
-                                div.send_keys(description)
-                                time.sleep(2)
-                                
-                                # Verify
-                                text = div.text or div.get_attribute('textContent')
-                                if text and len(text) > 5:
-                                    print(f"✓ Text successfully entered in contenteditable #{idx + 1}: {text[:50]}...")
-                                    description_entered = True
-                                    self.driver.save_screenshot('text_entered_success.png')
-                                    break
-                        except Exception as e:
-                            print(f"  Contenteditable #{idx + 1} failed: {e}")
-                            continue
-                except Exception as e:
-                    print(f"Strategy 4 failed: {e}")
-            
-            if not description_entered:
-                print("WARNING: Could not enter description text!")
-                self.driver.save_screenshot('text_entry_failed.png')
-                print("Continuing anyway, but text may be missing...")
-            
-            time.sleep(3)
+            time.sleep(2)
             
             self.handle_popups()
             
