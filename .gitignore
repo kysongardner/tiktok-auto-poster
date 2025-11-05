@@ -1,0 +1,28 @@
+# Environment variables (contains passwords)
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+ENV/
+env/
+
+# Screenshots
+*.png
+
+# Video history
+.posted_videos
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
