@@ -12,6 +12,7 @@ import os
 import random
 import time
 import schedule
+from datetime import datetime
 
 # Load environment variables
 load_dotenv()
@@ -426,6 +427,7 @@ class TikTokBufferPoster:
 def main():
     print("Starting TikTok Auto Poster...")
     print(f"Using videos from: {os.getenv('VIDEOS_FOLDER')}")
+    print("Posting schedule: Every 30 minutes between 2:25 PM and 12:25 AM")
     
     poster = None
     
@@ -439,17 +441,45 @@ def main():
             return
         
         print("\n=== Login successful! Browser will stay open ===")
-        print("Will post every 1 hour. Press Ctrl+C to stop.\n")
+        print("Will post every 30 minutes between 2:25 PM and 12:25 AM. Press Ctrl+C to stop.\n")
         
         post_count = 0
-        last_post_time = time.time()
+        last_post_time = 0  # Start at 0 so first post happens immediately if in time window
         
         while True:
             current_time = time.time()
             time_since_last_post = current_time - last_post_time
             
-            # Post every 1 hour (3600 seconds)
-            if time_since_last_post >= 3600 or post_count == 0:
+            # Get current hour and minute
+            now = datetime.now()
+            current_hour = now.hour
+            current_minute = now.minute
+            
+            # Check if we're in the posting time window (2:25 PM to 12:25 AM)
+            # 2:25 PM = 14:25 (hour=14, minute>=25)
+            # 12:25 AM = 00:25 (hour=0, minute<=25)
+            in_time_window = False
+            
+            if current_hour == 14 and current_minute >= 25:
+                # Between 2:25 PM and 2:59 PM
+                in_time_window = True
+            elif current_hour > 14 and current_hour < 24:
+                # Between 3:00 PM and 11:59 PM
+                in_time_window = True
+            elif current_hour == 0 and current_minute <= 25:
+                # Between 12:00 AM and 12:25 AM
+                in_time_window = True
+            
+            if not in_time_window:
+                # Outside posting window
+                if post_count == 0 or time_since_last_post > 300:  # Print status every 5 minutes
+                    print(f"[{now.strftime('%I:%M %p')}] Outside posting window (2:25 PM - 12:25 AM). Waiting...")
+                    last_post_time = current_time  # Update to avoid spam printing
+                time.sleep(60)
+                continue
+            
+            # Post every 30 minutes (1800 seconds) if we're in the time window
+            if time_since_last_post >= 1800 or post_count == 0:
                 print(f"\n=== POSTING VIDEO #{post_count + 1} ===")
                 
                 try:
@@ -500,7 +530,8 @@ def main():
                 
                 # After successful post, wait and prepare for next one
                 if post_count > 0:
-                    print(f"\nNext post in 1 hour. Browser staying open...")
+                    next_post_time = datetime.fromtimestamp(last_post_time + 1800)
+                    print(f"\nNext post in 30 minutes at {next_post_time.strftime('%I:%M %p')}. Browser staying open...")
             
             # Keep session alive every 5 minutes
             if int(current_time) % 300 == 0:  # Every 5 minutes
